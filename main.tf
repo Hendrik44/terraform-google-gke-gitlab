@@ -17,22 +17,22 @@
 terraform {
   required_version = ">= 0.12.0"
   required_providers {
-    google = "3.8.0"
+    google      = "3.8.0"
     google-beta = "3.8.0"
-    helm = "~> 0.10"
-    kubernetes = "~> 1.10.0"
-    null = "~> 2.1.2"
-    random = "~> 2.2.1"
-    template = "~> 2.1.2"
+    helm        = "~> 0.10"
+    kubernetes  = "~> 1.10.0"
+    null        = "~> 2.1.2"
+    random      = "~> 2.2.1"
+    template    = "~> 2.1.2"
   }
 }
 
 provider "google" {
-  project = "${var.project_id}"
+  project = var.project_id
 }
 
 provider "google-beta" {
-  project = "${var.project_id}"
+  project = var.project_id
 }
 
 provider "helm" {
@@ -41,64 +41,64 @@ provider "helm" {
   namespace       = "kube-system"
 
   kubernetes {
-    host                   = "${google_container_cluster.gitlab.endpoint}"
-    client_certificate     = "${base64decode(google_container_cluster.gitlab.master_auth.0.client_certificate)}"
-    client_key             = "${base64decode(google_container_cluster.gitlab.master_auth.0.client_key)}"
-    cluster_ca_certificate = "${base64decode(google_container_cluster.gitlab.master_auth.0.cluster_ca_certificate)}"
+    host                   = google_container_cluster.gitlab.endpoint
+    client_certificate     = base64decode(google_container_cluster.gitlab.master_auth.0.client_certificate)
+    client_key             = base64decode(google_container_cluster.gitlab.master_auth.0.client_key)
+    cluster_ca_certificate = base64decode(google_container_cluster.gitlab.master_auth.0.cluster_ca_certificate)
   }
 }
 
 provider "kubernetes" {
   load_config_file       = false
-  host                   = "${google_container_cluster.gitlab.endpoint}"
-  client_certificate     = "${base64decode(google_container_cluster.gitlab.master_auth.0.client_certificate)}"
-  client_key             = "${base64decode(google_container_cluster.gitlab.master_auth.0.client_key)}"
-  cluster_ca_certificate = "${base64decode(google_container_cluster.gitlab.master_auth.0.cluster_ca_certificate)}"
+  host                   = google_container_cluster.gitlab.endpoint
+  client_certificate     = base64decode(google_container_cluster.gitlab.master_auth.0.client_certificate)
+  client_key             = base64decode(google_container_cluster.gitlab.master_auth.0.client_key)
+  cluster_ca_certificate = base64decode(google_container_cluster.gitlab.master_auth.0.cluster_ca_certificate)
 }
 
 // IAM
 resource "google_project_service" "compute" {
-  project            = "${var.project_id}"
+  project            = var.project_id
   service            = "compute.googleapis.com"
   disable_on_destroy = false
 }
 
 resource "google_project_service" "gke" {
-  project            = "${var.project_id}"
+  project            = var.project_id
   service            = "container.googleapis.com"
   disable_on_destroy = false
 }
 
 resource "google_project_service" "service_networking" {
-  project            = "${var.project_id}"
+  project            = var.project_id
   service            = "servicenetworking.googleapis.com"
   disable_on_destroy = false
 }
 
 resource "google_project_service" "cloudresourcemanager" {
-  project            = "${var.project_id}"
+  project            = var.project_id
   service            = "cloudresourcemanager.googleapis.com"
   disable_on_destroy = false
 }
 
 resource "google_project_service" "redis" {
-  project            = "${var.project_id}"
+  project            = var.project_id
   service            = "redis.googleapis.com"
   disable_on_destroy = false
 }
 
 resource "google_service_account" "gitlab_gcs" {
-  project      = "${var.project_id}"
+  project      = var.project_id
   account_id   = "gitlab-gcs"
   display_name = "GitLab Cloud Storage"
 }
 
 resource "google_service_account_key" "gitlab_gcs" {
-  service_account_id = "${google_service_account.gitlab_gcs.name}"
+  service_account_id = google_service_account.gitlab_gcs.name
 }
 
 resource "google_project_iam_member" "project" {
-  project = "${var.project_id}"
+  project = var.project_id
   role    = "roles/storage.admin"
   member  = "serviceAccount:${google_service_account.gitlab_gcs.email}"
 }
@@ -106,49 +106,49 @@ resource "google_project_iam_member" "project" {
 // Networking
 resource "google_compute_network" "gitlab" {
   name                    = "gitlab"
-  project                 = "${var.project_id}"
+  project                 = var.project_id
   auto_create_subnetworks = false
-  depends_on              = ["google_project_service.compute"]
+  depends_on              = [google_project_service.compute]
 }
 
 resource "google_compute_subnetwork" "subnetwork" {
   name          = "gitlab"
   ip_cidr_range = "10.0.0.0/16"
-  region        = "${var.region}"
-  network       = "${google_compute_network.gitlab.self_link}"
+  region        = var.region
+  network       = google_compute_network.gitlab.self_link
 }
 
 resource "google_compute_address" "gitlab" {
   name         = "gitlab"
-  region       = "${var.region}"
+  region       = var.region
   address_type = "EXTERNAL"
   description  = "Gitlab Ingress IP"
-  depends_on   = ["google_project_service.compute"]
-  count        = "${var.gitlab_address_name}" == "" ? 1 : 0
+  depends_on   = [google_project_service.compute]
+  count        = var.gitlab_address_name == "" ? 1 : 0
 }
 
 // Database
 resource "google_compute_global_address" "gitlab_sql" {
-  provider      = "google-beta"
-  project       = "${var.project_id}"
+  provider      = google-beta
+  project       = var.project_id
   name          = "gitlab-sql"
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"
-  network       = "${google_compute_network.gitlab.self_link}"
+  network       = google_compute_network.gitlab.self_link
   prefix_length = 16
 }
 
 resource "google_service_networking_connection" "private_vpc_connection" {
-  provider                = "google-beta"
-  network                 = "${google_compute_network.gitlab.self_link}"
+  provider                = google-beta
+  network                 = google_compute_network.gitlab.self_link
   service                 = "servicenetworking.googleapis.com"
-  reserved_peering_ranges = ["${google_compute_global_address.gitlab_sql.name}"]
+  reserved_peering_ranges = [google_compute_global_address.gitlab_sql.name]
 }
 
 resource "google_sql_database_instance" "gitlab_db" {
-  depends_on       = ["google_service_networking_connection.private_vpc_connection"]
+  depends_on       = [google_service_networking_connection.private_vpc_connection]
   name             = var.gitlab_db_name
-  region           = "${var.region}"
+  region           = var.region
   database_version = "POSTGRES_9_6"
 
   settings {
@@ -157,14 +157,14 @@ resource "google_sql_database_instance" "gitlab_db" {
 
     ip_configuration {
       ipv4_enabled    = "false"
-      private_network = "${google_compute_network.gitlab.self_link}"
+      private_network = google_compute_network.gitlab.self_link
     }
   }
 }
 
 resource "google_sql_database" "gitlabhq_production" {
   name     = "gitlabhq_production"
-  instance = "${google_sql_database_instance.gitlab_db.name}"
+  instance = google_sql_database_instance.gitlab_db.name
 }
 
 resource "random_string" "autogenerated_gitlab_db_password" {
@@ -174,9 +174,9 @@ resource "random_string" "autogenerated_gitlab_db_password" {
 
 resource "google_sql_user" "gitlab" {
   name     = "gitlab"
-  instance = "${google_sql_database_instance.gitlab_db.name}"
+  instance = google_sql_database_instance.gitlab_db.name
 
-  password = "${var.gitlab_db_password != "" ? var.gitlab_db_password : random_string.autogenerated_gitlab_db_password.result}"
+  password = var.gitlab_db_password != "" ? var.gitlab_db_password : "${random_string.autogenerated_gitlab_db_password.result}"
 }
 
 // Redis
@@ -184,10 +184,10 @@ resource "google_redis_instance" "gitlab" {
   name               = "gitlab"
   tier               = var.gitlab_redis_tier
   memory_size_gb     = var.gitlab_redis_size
-  region             = "${var.region}"
-  authorized_network = "${google_compute_network.gitlab.self_link}"
+  region             = var.region
+  authorized_network = google_compute_network.gitlab.self_link
 
-  depends_on = ["google_project_service.redis"]
+  depends_on = [google_project_service.redis]
 
   location_id             = "${var.region}-a"
   alternative_location_id = "${var.region}-b"
@@ -197,49 +197,49 @@ resource "google_redis_instance" "gitlab" {
 // Cloud Storage
 resource "google_storage_bucket" "gitlab-backups" {
   name     = "${var.project_id}-gitlab-backups"
-  location = "${var.region}"
+  location = var.region
 }
 
 resource "google_storage_bucket" "gitlab-uploads" {
   name     = "${var.project_id}-gitlab-uploads"
-  location = "${var.region}"
+  location = var.region
 }
 
 resource "google_storage_bucket" "gitlab-artifacts" {
   name     = "${var.project_id}-gitlab-artifacts"
-  location = "${var.region}"
+  location = var.region
 }
 
 resource "google_storage_bucket" "git-lfs" {
   name     = "${var.project_id}-git-lfs"
-  location = "${var.region}"
+  location = var.region
 }
 
 resource "google_storage_bucket" "gitlab-packages" {
   name     = "${var.project_id}-gitlab-packages"
-  location = "${var.region}"
+  location = var.region
 }
 
 resource "google_storage_bucket" "gitlab-registry" {
   name     = "${var.project_id}-registry"
-  location = "${var.region}"
+  location = var.region
 }
 
 resource "google_storage_bucket" "gitlab-pseudo" {
   name     = "${var.project_id}-pseudo"
-  location = "${var.region}"
+  location = var.region
 }
 
 resource "google_storage_bucket" "gitlab-runner-cache" {
   name     = "${var.project_id}-runner-cache"
-  location = "${var.region}"
+  location = var.region
 }
 // GKE Cluster
 resource "google_container_cluster" "gitlab" {
-  project            = "${var.project_id}"
+  project            = var.project_id
   name               = "gitlab"
-  location           = "${var.region}"
-  min_master_version = "${var.gke_version}"
+  location           = var.region
+  min_master_version = var.gke_version
 
   # We can't create a cluster with no node pool defined, but we want to only use
   # separately managed node pools. So we create the smallest possible default
@@ -249,8 +249,8 @@ resource "google_container_cluster" "gitlab" {
   initial_node_count = 1
   node_locations     = var.gke_node_locations
 
-  network    = "${google_compute_network.gitlab.self_link}"
-  subnetwork = "${google_compute_subnetwork.subnetwork.self_link}"
+  network    = google_compute_network.gitlab.self_link
+  subnetwork = google_compute_subnetwork.subnetwork.self_link
 
   ip_allocation_policy {
     # Allocate ranges automatically
@@ -279,13 +279,13 @@ resource "google_container_cluster" "gitlab" {
     ]
   }
 
-  depends_on = ["google_project_service.gke"]
+  depends_on = [google_project_service.gke]
 }
 
 resource "google_container_node_pool" "gitlab" {
   name       = "gitlab"
-  location   = "${var.region}"
-  cluster    = "${google_container_cluster.gitlab.name}"
+  location   = var.region
+  cluster    = google_container_cluster.gitlab.name
   node_count = 1
   depends_on = []
 
@@ -398,29 +398,29 @@ data "helm_repository" "gitlab" {
 }
 
 data "google_compute_address" "gitlab" {
-  name   = "${var.gitlab_address_name}"
-  region = "${var.region}"
+  name   = var.gitlab_address_name
+  region = var.region
 
   # Do not get data if the address is being created as part of the run
-  count = "${var.gitlab_address_name}" == "" ? 0 : 1
+  count = var.gitlab_address_name == "" ? 0 : 1
 }
 
 locals {
   gitlab_address = "${var.gitlab_address_name}" == "" ? "${google_compute_address.gitlab.0.address}" : "${data.google_compute_address.gitlab.0.address}"
-  domain         = "${var.domain}" != "" ? "${var.domain}" : "${local.gitlab_address}.xip.io"
+  domain         = var.domain != "" ? var.domain : "${local.gitlab_address}.xip.io"
 }
 
 data "template_file" "helm_values" {
   template = "${file("${path.module}/values.yaml.tpl")}"
 
   vars = {
-    DOMAIN                = "${local.domain}"
-    INGRESS_IP            = "${local.gitlab_address}"
-    DB_PRIVATE_IP         = "${google_sql_database_instance.gitlab_db.private_ip_address}"
-    REDIS_PRIVATE_IP      = "${google_redis_instance.gitlab.host}"
-    PROJECT_ID            = "${var.project_id}"
-    CERT_MANAGER_EMAIL    = "${var.certmanager_email}"
-    GITLAB_RUNNER_INSTALL = "${var.gitlab_runner_install}"
+    DOMAIN                = local.domain
+    INGRESS_IP            = local.gitlab_address
+    DB_PRIVATE_IP         = google_sql_database_instance.gitlab_db.private_ip_address
+    REDIS_PRIVATE_IP      = google_redis_instance.gitlab.host
+    PROJECT_ID            = var.project_id
+    CERT_MANAGER_EMAIL    = var.certmanager_email
+    GITLAB_RUNNER_INSTALL = var.gitlab_runner_install
   }
 }
 
@@ -428,23 +428,23 @@ resource "null_resource" "sleep_for_cluster_fix_helm_6361" {
   provisioner "local-exec" {
     command = "sleep 180"
   }
-  depends_on = ["google_container_cluster.gitlab"]
+  depends_on = [google_container_cluster.gitlab]
 }
 
 resource "helm_release" "gitlab" {
   name       = "gitlab"
-  repository = "${data.helm_repository.gitlab.name}"
+  repository = data.helm_repository.gitlab.name
   chart      = "gitlab"
   version    = var.gitlab_helm_release_version
   timeout    = 600
 
   values = ["${data.template_file.helm_values.rendered}"]
 
-  depends_on = ["google_redis_instance.gitlab",
-    "google_sql_database.gitlabhq_production",
-    "google_sql_user.gitlab",
-    "kubernetes_cluster_role_binding.tiller-admin",
-    "kubernetes_storage_class.pd-ssd",
-    "null_resource.sleep_for_cluster_fix_helm_6361",
+  depends_on = [google_redis_instance.gitlab,
+    google_sql_database.gitlabhq_production,
+    google_sql_user.gitlab,
+    kubernetes_cluster_role_binding.tiller-admin,
+    kubernetes_storage_class.pd-ssd,
+    null_resource.sleep_for_cluster_fix_helm_6361,
   ]
 }
