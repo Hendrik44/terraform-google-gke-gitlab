@@ -26,15 +26,50 @@ variable "domain" {
 variable "certmanager_email" {
   description = "Email used to retrieve SSL certificates from Let's Encrypt"
 }
-   
+
 variable "gke_version" {
   description = "Version of GKE to use for the GitLab cluster"
   default     = "1.14"
 }
 
+variable "gke_node_locations" {
+  type        = list(string)
+  description = "set the locations where you want to spinup nodes"
+  default     = null
+}
+
+variable "gke_maschine_typ" {
+  description = "Specify the maschine type for the gitlab node pool"
+  default     = "n1-standard-2"
+}
+
 variable "gitlab_db_password" {
   description = "Password for the GitLab Postgres user"
   default     = ""
+}
+
+variable "gitlab_db_name" {
+  description = "Specify the name for the database to use"
+  default     = "gitlab-db"
+}
+
+variable "gitlab_db_instance_type" {
+  default = "db-f1-micro"
+}
+
+variable "gitlab_redis_tier" {
+  description = "describe your variable"
+  default     = "BASIC"
+}
+
+variable "gitlab_redis_size" {
+  description = "set the redis momory store size"
+  default     = 1
+}
+
+variable "gitlab_helm_release_version" {
+  description = "Specify the helm release version to deploy"
+  default     = "3.2.2"
 }
 
 variable "gitlab_address_name" {

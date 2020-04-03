@@ -147,12 +147,12 @@ resource "google_service_networking_connection" "private_vpc_connection" {
 
 resource "google_sql_database_instance" "gitlab_db" {
   depends_on       = ["google_service_networking_connection.private_vpc_connection"]
-  name             = "gitlab-db"
+  name             = var.gitlab_db_name
   region           = "${var.region}"
   database_version = "POSTGRES_9_6"
 
   settings {
-    tier            = "db-custom-4-15360"
+    tier            = var.gitlab_db_instance_type
     disk_autoresize = true
 
     ip_configuration {
@@ -182,15 +182,15 @@ resource "google_sql_user" "gitlab" {
 // Redis
 resource "google_redis_instance" "gitlab" {
   name               = "gitlab"
-  tier               = "STANDARD_HA"
-  memory_size_gb     = 5
+  tier               = var.gitlab_redis_tier
+  memory_size_gb     = var.gitlab_redis_size
   region             = "${var.region}"
   authorized_network = "${google_compute_network.gitlab.self_link}"
 
   depends_on = ["google_project_service.redis"]
 
   location_id             = "${var.region}-a"
-  alternative_location_id = "${var.region}-f"
+  alternative_location_id = "${var.region}-b"
   display_name            = "GitLab Redis"
 }
 
@@ -247,6 +247,7 @@ resource "google_container_cluster" "gitlab" {
   remove_default_node_pool = true
 
   initial_node_count = 1
+  node_locations     = var.gke_node_locations
 
   network    = "${google_compute_network.gitlab.self_link}"
   subnetwork = "${google_compute_subnetwork.subnetwork.self_link}"
@@ -290,7 +291,7 @@ resource "google_container_node_pool" "gitlab" {
 
   node_config {
     preemptible  = false
-    machine_type = "n1-standard-4"
+    machine_type = var.gke_maschine_typ
 
     oauth_scopes = [
       "https://www.googleapis.com/auth/compute",
@@ -434,7 +435,7 @@ resource "helm_release" "gitlab" {
   name       = "gitlab"
   repository = "${data.helm_repository.gitlab.name}"
   chart      = "gitlab"
-  version    = "2.3.7"
+  version    = var.gitlab_helm_release_version
   timeout    = 600
 
   values = ["${data.template_file.helm_values.rendered}"]
