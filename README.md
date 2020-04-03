@@ -38,6 +38,13 @@ Then perform the following commands on the root folder:
 | gitlab\_db\_password | Password for the GitLab Postgres user | string | `""` | no |
 | project\_id | GCP Project to deploy resources | string | n/a | yes |
 | region | GCP region to deploy resources to | string | `"us-central1"` | no |
+| gke\_node\_locations | Zones in GCP region you want to spawn nodes | list | null | no |
+| gke\_maschine\_typ | set instance type you want to use for the nodes | string | n1-standard-2 | no |
+| gitlab_db_name | set a custom db name | string | gitlab-db | no |
+| gitlab\_db\_instance\_type | set the instancetype for the db | string | db-f1-micro | no |
+| gitlab\_redis\_tier | set redis availability tier ("BASIC" / "STANDARD_HA") | string | BASIC | no |
+| gitlab\_redis\_size | set redis size | int | 1 | no |
+| gitlab_helm_release_version | set helmversion | string | 3.2.2 | no |
 
 ## Outputs
 
